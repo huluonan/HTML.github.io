@@ -2,105 +2,171 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<title>超级萌！打地鼠游戏</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>贪吃蛇小游戏</title>
 <style>
-    body{margin:0;padding:0;background:linear-gradient(#a8e6cf,#dcedc1);font-family:"Comic Sans MS",微软雅黑,sans-serif;text-align:center;overflow:hidden;}
-    h1{color:#ff6b6b;margin:30px 0;font-size:3em;text-shadow:3px 3px 0 #fff;}
-    .info{font-size:1.8em;margin:15px;color:#333;}
-    #score{color:#e91e63;font-weight:bold;}
-    #time{color:#4caf50;font-weight:bold;}
-    .game{width:600px;height:420px;margin:20px auto;background:#8bc34a;border-radius:20px;display:grid;grid-template-columns:repeat(3,1fr);gap:20px;padding:30px;box-sizing:border-box;box-shadow:0 15px 35px rgba(0,0,0,0.4);}
-    .hole{background:#5d4037;border-radius:50%;position:relative;overflow:hidden;cursor:pointer;box-shadow:inset 0 10px 15px rgba(0,0,0,0.4);transition:transform 0.1s;}
-    .hole:active{transform:scale(0.95);}
-    .mole{
-        width:100%;height:100%;position:absolute;bottom:-100%;left:0;
-        background-size:cover;background-position:center;
-        transition:bottom 0.4s cubic-bezier(0.68, -0.55, 0.27, 1.55);
-    }
-    .hole.up .mole{bottom:0;}
-    .hit{animation:whack 0.2s;}
-    @keyframes whack{0%{transform:scale(1);}50%{transform:scale(1.2) rotate(10deg);}100%{transform:scale(0.8) rotate(-5deg);}}
-    .start-btn{padding:18px 50px;font-size:1.8em;background:#ff5722;color:#fff;border:none;border-radius:50px;cursor:pointer;box-shadow:0 8px 20px rgba(0,0,0,0.4);transition:0.3s;}
-    .start-btn:hover{transform:scale(1.15);}
-    .start-btn:active{transform:scale(0.95);}
-    footer{margin:40px;color:#555;font-size:1.2em;}
+  body {
+    margin: 0;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #000;
+    font-family: Arial, sans-serif;
+    flex-direction: column;
+    color: #0f0;
+  }
+  canvas {
+    border: 4px solid #0f0;
+    box-shadow: 0 0 20px #0f0;
+  }
+  #score {
+    margin-top: 20px;
+    font-size: 24px;
+  }
+  #gameOver {
+    position: absolute;
+    font-size: 50px;
+    color: red;
+    display: none;
+  }
 </style>
 </head>
 <body>
 
-<h1>超级萌！打我呀~</h1>
-<div class="info">分数：<span id="score">0</span>　　剩余时间：<span id="time">30</span>s</div>
-<button class="start-btn" onclick="startGame()">开始游戏！</button>
-
-<div class="game" id="gameBoard"></div>
-
-<footer>你的萌地鼠网站上线啦！https://你的用户名.github.io</footer>
+<canvas id="canvas" width="400" height="400"></canvas>
+<div id="score">分数: 0</div>
+<div id="gameOver">游戏结束！按 F5 重新开始</div>
 
 <script>
-// 内置音效
-const hitSound = new Audio("data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=");
+// 基本设置
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const scoreElement = document.getElementById('score');
+const gameOverElement = document.getElementById('gameOver');
 
-let score = 0, timeLeft = 30, timerId = null, moleTimer = null;
+const grid = 20;                    // 每个格子大小
+let count = 0;
 
-function createBoard() {
-    const board = document.getElementById('gameBoard');
-    board.innerHTML = '';
-    for(let i = 0; i < 9; i++) {
-        const hole = document.createElement('div');
-        hole.className = 'hole';
-        
-        const mole = document.createElement('div');
-        mole.className = 'mole';
-        // 超级可爱地鼠图片！（免费PNG，卡通笑脸）
-        mole.style.backgroundImage = "url('https://png.pngtree.com/png-vector/20220718/ourmid/pngtree-cute-mole-png-image_6011056.png')";
-        
-        hole.appendChild(mole);
-        hole.onclick = () => {
-            if(hole.classList.contains('up')) {
-                score++;
-                document.getElementById('score').textContent = score;
-                hitSound.currentTime = 0;
-                hitSound.play();
-                hole.classList.remove('up');
-                hole.classList.add('hit');
-                setTimeout(() => hole.classList.remove('hit'), 200);
-            }
-        };
-        board.appendChild(hole);
+let snake = [
+  {x: 200, y: 200},
+  {x: 180, y: 200},
+  {x: 160, y: 200}
+];
+
+let dx = grid;   // 初始向右
+let dy =  = 0;
+let foodX, foodY;
+let score = 0;
+let changingDirection = false;
+let gameLoop;
+
+// 生成随机食物
+function randomFood() {
+  foodX = Math.floor(Math.random() * (canvas.width / grid)) * grid;
+  foodY = Math.floor(Math.random() * (canvas.height / grid)) * grid;
+  
+  // 避免食物生成在蛇身上
+  for (let segment of snake) {
+    if (segment.x === foodX && segment.y === foodY) {
+      randomFood();
+      return;
     }
+  }
 }
 
-function randomMole() {
-    if(timeLeft <= 0) return;
-    const holes = document.querySelectorAll('.hole');
-    holes.forEach(h => h.classList.remove('up'));
-    const idx = Math.floor(Math.random() * 9);
-    holes[idx].classList.add('up');
+// 主游戏循环
+function main() {
+  if (hasGameEnded()) {
+    gameOverElement.style.display = 'block';
+    return;
+  }
+
+  changingDirection = false;
+  setTimeout(function() {
+    clearCanvas();
+    drawFood();
+    moveSnake();
+    drawSnake();
+    main();
+  }, 100); // 速度（越小越快）
 }
 
-function countDown() {
-    timeLeft--;
-    document.getElementById('time').textContent = timeLeft;
-    if(timeLeft <= 0) {
-        clearInterval(timerId);
-        clearInterval(moleTimer);
-        alert('时间到！最终得分：' + score + ' 分！超棒～');
-    }
+// 清空画布
+function clearCanvas() {
+  ctx.fillStyle = 'black';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
 }
 
-function startGame() {
-    score = 0; timeLeft = 30;
-    document.getElementById('score').textContent = '0';
-    document.getElementById('time').textContent = '30';
-    createBoard();
-    document.querySelector('.start-btn').style.display = 'none';
+// 绘制蛇
+function drawSnake() {
+  snake.forEach((segment, index) => {
+    ctx.fillStyle = index === 0 ? '#0f0' : '#0a0';
+    ctx.fillRect(segment.x, segment.y, grid, grid);
     
-    timerId = setInterval(countDown, 1000);
-    moleTimer = setInterval(randomMole, 700);
+    ctx.strokeStyle = '#000';
+    ctx.strokeRect(segment.x, segment.y, grid, grid);
+  });
 }
 
-createBoard();
+// 移动蛇
+function moveSnake() {
+  const head = {x: snake[0].x + dx, y: snake[0].y + dy};
+
+  // 穿墙效果
+  if (head.x >= canvas.width) head.x = 0;
+  if (head.x < 0) head.x = canvas.width - grid;
+  if (head.y >= canvas.height) head.y = 0;
+  if (head.y < 0) head.y = canvas.height - grid;
+
+  snake.unshift(head);
+
+  // 吃到食物？
+  if (head.x === foodX && head.y === foodY) {
+    score += 10;
+    scoreElement.textContent = `分数: ${score}`;
+    randomFood();
+  } else {
+    snake.pop();
+  }
+}
+
+// 绘制食物
+function drawFood() {
+  ctx.fillStyle = 'red';
+  ctx.beginPath();
+  ctx.arc(foodX + grid/2, foodY + grid/2, grid/2, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+// 检测游戏是否结束（撞到自己）
+function hasGameEnded() {
+  for (let i = 4; i < snake.length; i++) {
+    if (snake[i].x === snake[0].x && snake[i].y === snake[0].y) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// 键盘控制
+document.addEventListener('keydown', e => {
+  if (changingDirection) return;
+  changingDirection = true;
+
+  const LEFT  = 37, UP = 38, RIGHT = 39, DOWN = 40;
+  const key = e.keyCode;
+
+  // 防止掉头直接撞自己
+  if (key === LEFT  && dx !== grid)   { dx = -grid; dy = 0; }
+  if (key === UP    && dy !== grid)   { dx = 0;    dy = -grid; }
+  if (key === RIGHT && dx !== -grid)  { dx = grid; dy = 0; }
+  if (key === DOWN  && dy !== -grid)  { dx = 0;    dy = grid; }
+});
+
+// 开始游戏
+randomFood();
+main();
+
 </script>
 </body>
 </html>
