@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>打我呀~ 超级可爱地鼠游戏</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+    body{margin:0;padding:0;background:linear-gradient(#a8e6cf,#dcedc1);font-family:"Comic Sans MS",微软雅黑,sans-serif;text-align:center;overflow:hidden;}
+    h1{color:#ff6b6b;margin:30px 0;font-size:3em;text-shadow:3px 3px 0 #fff;}
+    .info{font-size:1.8em;margin:15px;color:#333;}
+    #score{color:#e91e63;font-weight:bold;}
+    #time{color:#4caf50;font-weight:bold;}
+    .game{width:600px;height:420px;margin:20px auto;background:#8bc34a;border-radius:20px;display:grid;grid-template-columns:repeat(3,1fr);gap:20px;padding:30px;box-sizing:border-box;box-shadow:0 15px 35px rgba(0,0,0,0.4);}
+    .hole{background:#5d4037;border-radius:50%;position:relative;overflow:hidden;cursor:pointer;box-shadow:inset 0 10px 15px rgba(0,0,0,0.4);}
+    .mole{
+        width:90%;height:90%;position:absolute;bottom:-100%;left:5%;
+        background:#ff9800;border-radius:50% 50% 50% 50% / 60% 60% 40% 40%;
+        transition:bottom 0.4s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+        box-shadow:0 -5px 15px rgba(0,0,0,0.3);
+    }
+    .mole::before{content:"";position:absolute;top:15%;left:50%;transform:translateX(-50%);width:30%;height:25%;background:#333;border-radius:50%;box-shadow:0 0 10px #fff;}
+    .mole::after{content:"";position:absolute;top:25%;left:50%;transform:translateX(-50%);width:50%;height:40%;background:#fff;border-radius:50%;opacity:0.3;}
+    .eyes{position:absolute;top:30%;left:50%;transform:translateX(-50%);width:60%;height:30%;display:flex;justify-content:space-around;}
+    .eye{width:25%;height:100%;background:#000;border-radius:50%;animation:blink 3s infinite;}
+    .mole .mouth{position:absolute;bottom:25%;left:50%;transform:translateX(-50%);width:40%;height:20%;border-bottom:8px solid #333;border-radius:50%;}
+    @keyframes blink{0%,95%{height:100%;} 96%,100%{height:5%;}}
+    .hole.up .mole{bottom:10%;}
+    .start-btn{padding:18px 50px;font-size:1.8em;background:#ff5722;color:#fff;border:none;border-radius:50px;cursor:pointer;box-shadow:0 8px 20px rgba(0,0,0,0.4);transition:0.3s;}
+    .start-btn:hover{transform:scale(1.15);}
+    .start-btn:active{transform:scale(0.95);}
+    footer{margin:40px;color:#555;font-size:1.2em;}
+</style>
+</head>
+<body>
+
+<h1>快来打我呀~</h1>
+<div class="info">分数：<span id="score">0</span>　　剩余时间：<span id="time">30</span>s</div>
+<button class="start-btn" onclick="startGame()">开始游戏！</button>
+
+<div class="game" id="gameBoard"></div>
+
+<footer>你的个人小游戏网站上线啦！地址：https://你的用户名.github.io</footer>
+
+<script>
+// 打地鼠音效用 base64 内置，永不失联！
+const hitSound = new Audio("data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=");
+hitSound.volume = 0.5;
+
+let score = 0, timeLeft = 30, timerId = null, moleTimer = null;
+
+function createBoard() {
+    const board = document.getElementById('gameBoard');
+    board.innerHTML = '';
+    for(let i = 0; i < 9; i++) {
+        const hole = document.createElement('div');
+        hole.className = 'hole';
+        
+        const mole = document.createElement('div');
+        mole.className = 'mole';
+        mole.innerHTML = `<div class="eyes"><div class="eye"></div><div class="eye"></div></div><div class="mouth"></div>`;
+        
+        hole.appendChild(mole);
+        hole.onclick = () => {
+            if(hole.classList.contains('up')) {
+                score++;
+                document.getElementById('score').textContent = score;
+                hitSound.currentTime = 0;
+                hitSound.play();
+                hole.classList.remove('up');
+            }
+        };
+        board.appendChild(hole);
+    }
+}
+
+function randomMole() {
+    if(timeLeft <= 0) return;
+    const holes = document.querySelectorAll('.hole');
+    holes.forEach(h => h.classList.remove('up'));
+    const idx = Math.floor(Math.random() * 9);
+    holes[idx].classList.add('up');
+}
+
+function countDown() {
+    timeLeft--;
+    document.getElementById('time').textContent = timeLeft;
+    if(timeLeft <= 0) {
+        clearInterval(timerId);
+        clearInterval(moleTimer);
+        alert('时间到！最终得分：' + score + ' 分！太棒啦～');
+    }
+}
+
+function startGame() {
+    score = 0; timeLeft = 30;
+    document.getElementById('score').textContent = '0';
+    document.getElementById('time').textContent = '30';
+    createBoard();
+    document.querySelector('.start-btn').style.display = 'none';
+    
+    timerId = setInterval(countDown, 1000);
+    moleTimer = setInterval(randomMole, 700); // 更快更刺激！
+}
+
+// 页面打开先画好9个洞
+createBoard();
+</script>
+</body>
+</html>
